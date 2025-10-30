@@ -76,10 +76,8 @@ jobs:
           ORIGINAL_BODY: ${{ steps.getpr.outputs.body }}
         run: |
           # 新しい本文を組み立て (テンプレートは既に \n エスケープ済み)
-          # TEMPLATE_CONTENT 内の \n は実際の改行に変換してから結合したい場合:
-          # template_real=$(printf "%b" "$TEMPLATE_CONTENT")
-          # ここではそのまま利用 (表示上は \n が残る)
-          new_body=$(printf "%s\n---\n(Original content below)\n%s" "$TEMPLATE_CONTENT" "$ORIGINAL_BODY")
+          template_real=$(printf "%b" "$TEMPLATE_CONTENT")
+          new_body=$(printf "%s\n---\n(Original content below)\n%s" "$template_real" "$ORIGINAL_BODY")
 
           # jq を使って JSON 文字列として安全にエンコード
           payload=$(jq -Rn --arg b "$new_body" '{body: $b}')
