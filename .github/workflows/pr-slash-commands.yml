@@ -27,37 +27,88 @@ jobs:
       - name: Read template file
         id: read
         run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const key = process.env.TEMPLATE_KEY;
-          const file = `.github/PULL_REQUEST_TEMPLATE/${key}.md`;
-
-          if (!fs.existsSync(file)) {
-            console.log(`content=Template not found: ${file}`);
-            process.exit(0);
-          }
-
-          const lines = fs.readFileSync(file, 'utf8').replace(/\r/g, '').split('\n'); // CRLF -> LF
-          const escaped = lines.map(l => l.replace(/"/g, '\\"')); // " -> \"
-          const content = escaped.join('\\n');
-          console.log(`content=${content}`);
-          NODE >> "$GITHUB_OUTPUT"
-
-      - name: Get current PR body
-        id: getpr
-        uses: octokit/request-action@v2.4.0
-        with:
-          route: GET /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update PR body
-        uses: octokit/request-action@v2.4.0
-        with:
-          route: PATCH /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
-          body: |
-            {
-              "body": "${{ steps.read.outputs.content }}\n\n---\n(Original content below)\n\n${{ fromJson(steps.getpr.outputs.data).body }}"
+          node -e '
+            const fs = require("fs");
+            const key = process.env.TEMPLATE_KEY;
+            const file = `.github/PULL_REQUEST_TEMPLATE/${key}.md`;
+            if (!fs.existsSync(file)) {
+              process.stdout.write(`content=Template not found: ${file}\n`);
+              process.exit(0);
             }
+            const lines = fs.readFileSync(file, "utf8").replace(/\r/g, "").split("\n");
+            const escaped = lines.map(l => l.replace(/"/g, '\\"'));
+            const content = escaped.join("\\n");
+            process.stdout.write(`content=${content}\n`);
+          ' >> "$GITHUB_OUTPUT"
+        env:
+          TEMPLATE_KEY: ${{ steps.parse.outputs.key }}
+
+      # - name: Get current PR body
+      #   id: getpr
+      #   uses: octokit/request-action@v2.4.0
+      #   with:
+      #     route: GET /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # - name: Install jq (for JSON handling)
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y jq
+
+      - name: Get current PR body (curl)
+        id: getpr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          pr_json=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/pulls/$NUMBER")
+
+          body=$(echo "$pr_json" | jq -r '.body')
+
+          # GITHUB_OUTPUT にマルチライン本文を安全に渡す
+          {
+            echo 'body<<EOF'
+            echo "$body"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # - name: Update PR body
+      #   uses: octokit/request-action@v2.4.0
+      #   with:
+      #     route: PATCH /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
+      #     body: |
+      #       ${{ steps.read.outputs.content }}
+      #       ---
+      #       (Original content below)
+      #       ${{ fromJson(steps.getpr.outputs.data).body }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update PR body (curl)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+          TEMPLATE_CONTENT: ${{ steps.read.outputs.content }}
+          ORIGINAL_BODY: ${{ steps.getpr.outputs.body }}
+        run: |
+          # 新しい本文を組み立て (テンプレートは既に \n エスケープ済み)
+          # TEMPLATE_CONTENT 内の \n は実際の改行に変換してから結合したい場合:
+          # template_real=$(printf "%b" "$TEMPLATE_CONTENT")
+          # ここではそのまま利用 (表示上は \n が残る)
+          new_body=$(printf "%s\n---\n(Original content below)\n%s" "$TEMPLATE_CONTENT" "$ORIGINAL_BODY")
+
+          # jq を使って JSON 文字列として安全にエンコード
+          payload=$(jq -Rn --arg b "$new_body" '{body: $b}')
+
+          curl -s -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "https://api.github.com/repos/$REPO/pulls/$NUMBER"
