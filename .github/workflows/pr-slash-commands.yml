@@ -29,7 +29,7 @@ jobs:
         run: |
           cat > read-template.mjs <<'EOF'
 
-          const fs = require("fs");
+          import fs from "fs";
           const key = process.env.TEMPLATE_KEY;
           const file = `.github/PULL_REQUEST_TEMPLATE/${key}.md`;
           if (!fs.existsSync(file)) {
@@ -37,9 +37,9 @@ jobs:
             process.exit(0);
           }
           const lines = fs.readFileSync(file, "utf8").replace(/\r/g, "").split("\n");
-            const escaped = lines.map(l => l.replace(/"/g, '\\"'));
-            const content = escaped.join("\\n");
-            process.stdout.write(`content=${content}\n`);
+          const escaped = lines.map(l => l.replace(/"/g, '\\"'));
+          const content = escaped.join("\\n");
+          process.stdout.write(`content=${content}\n`);
 
           EOF
           node read-template.mjs >> "$GITHUB_OUTPUT"
