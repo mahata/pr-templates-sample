@@ -45,14 +45,14 @@ jobs:
 
       - name: Get current PR body
         id: getpr
-        uses: octokit/request-action@v2.4
+        uses: octokit/request-action@v2.4.0
         with:
           route: GET /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update PR body
-        uses: octokit/request-action@v2.4
+        uses: octokit/request-action@v2.4.0
         with:
           route: PATCH /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
           body: |
