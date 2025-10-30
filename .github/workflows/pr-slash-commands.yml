@@ -46,19 +46,6 @@ jobs:
         env:
           TEMPLATE_KEY: ${{ steps.parse.outputs.key }}
 
-      # - name: Get current PR body
-      #   id: getpr
-      #   uses: octokit/request-action@v2.4.0
-      #   with:
-      #     route: GET /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Install jq (for JSON handling)
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y jq
-
       - name: Get current PR body (curl)
         id: getpr
         env:
@@ -79,18 +66,6 @@ jobs:
             echo "$body"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
-
-      # - name: Update PR body
-      #   uses: octokit/request-action@v2.4.0
-      #   with:
-      #     route: PATCH /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
-      #     body: |
-      #       ${{ steps.read.outputs.content }}
-      #       ---
-      #       (Original content below)
-      #       ${{ fromJson(steps.getpr.outputs.data).body }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update PR body (curl)
         env:
