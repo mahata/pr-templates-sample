@@ -46,19 +46,6 @@ jobs:
         env:
           TEMPLATE_KEY: ${{ steps.parse.outputs.key }}
 
-      # - name: Get current PR body
-      #   id: getpr
-      #   uses: octokit/request-action@v2.4.0
-      #   with:
-      #     route: GET /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Install jq (for JSON handling)
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y jq
-
       - name: Get current PR body (curl)
         id: getpr
         env:
@@ -80,18 +67,6 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      # - name: Update PR body
-      #   uses: octokit/request-action@v2.4.0
-      #   with:
-      #     route: PATCH /repos/${{ github.repository }}/pulls/${{ github.event.issue.number }}
-      #     body: |
-      #       ${{ steps.read.outputs.content }}
-      #       ---
-      #       (Original content below)
-      #       ${{ fromJson(steps.getpr.outputs.data).body }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Update PR body (curl)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,10 +76,8 @@ jobs:
           ORIGINAL_BODY: ${{ steps.getpr.outputs.body }}
         run: |
           # 新しい本文を組み立て (テンプレートは既に \n エスケープ済み)
-          # TEMPLATE_CONTENT 内の \n は実際の改行に変換してから結合したい場合:
-          # template_real=$(printf "%b" "$TEMPLATE_CONTENT")
-          # ここではそのまま利用 (表示上は \n が残る)
-          new_body=$(printf "%s\n---\n(Original content below)\n%s" "$TEMPLATE_CONTENT" "$ORIGINAL_BODY")
+          template_real=$(printf "%b" "$TEMPLATE_CONTENT")
+          new_body=$(printf "%s\n---\n(Original content below)\n%s" "$template_real" "$ORIGINAL_BODY")
 
           # jq を使って JSON 文字列として安全にエンコード
           payload=$(jq -Rn --arg b "$new_body" '{body: $b}')
