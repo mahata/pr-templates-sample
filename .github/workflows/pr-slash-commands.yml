@@ -27,19 +27,22 @@ jobs:
       - name: Read template file
         id: read
         run: |
-          node -e '
-            const fs = require("fs");
-            const key = process.env.TEMPLATE_KEY;
-            const file = `.github/PULL_REQUEST_TEMPLATE/${key}.md`;
-            if (!fs.existsSync(file)) {
-              process.stdout.write(`content=Template not found: ${file}\n`);
-              process.exit(0);
-            }
-            const lines = fs.readFileSync(file, "utf8").replace(/\r/g, "").split("\n");
+          cat > read-template.mjs <<'EOF'
+
+          const fs = require("fs");
+          const key = process.env.TEMPLATE_KEY;
+          const file = `.github/PULL_REQUEST_TEMPLATE/${key}.md`;
+          if (!fs.existsSync(file)) {
+            process.stdout.write(`content=Template not found: ${file}\n`);
+            process.exit(0);
+          }
+          const lines = fs.readFileSync(file, "utf8").replace(/\r/g, "").split("\n");
             const escaped = lines.map(l => l.replace(/"/g, '\\"'));
             const content = escaped.join("\\n");
             process.stdout.write(`content=${content}\n`);
-          ' >> "$GITHUB_OUTPUT"
+
+          EOF
+          node read-template.mjs >> "$GITHUB_OUTPUT"
         env:
           TEMPLATE_KEY: ${{ steps.parse.outputs.key }}
 
