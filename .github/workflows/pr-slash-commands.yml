@@ -37,10 +37,7 @@ jobs:
           NUMBER: ${{ github.event.issue.number }}
           TEMPLATE_CONTENT: ${{ steps.read.outputs.content }}
         run: |
-          # 新しい本文を組み立て (テンプレートは既に \n エスケープ済み)
           template_body=$(printf "%b" "$TEMPLATE_CONTENT")
-
-          # jq を使って JSON 文字列として安全にエンコード
           payload=$(jq -Rn --arg b "$template_body" '{body: $b}')
 
           curl -s -X PATCH \
