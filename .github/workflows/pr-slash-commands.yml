@@ -46,38 +46,15 @@ jobs:
         env:
           TEMPLATE_KEY: ${{ steps.parse.outputs.key }}
 
-      - name: Get current PR body (curl)
-        id: getpr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.issue.number }}
-        run: |
-          pr_json=$(curl -s \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/pulls/$NUMBER")
-
-          body=$(echo "$pr_json" | jq -r '.body')
-
-          # GITHUB_OUTPUT にマルチライン本文を安全に渡す
-          {
-            echo 'body<<EOF'
-            echo "$body"
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
       - name: Update PR body (curl)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           NUMBER: ${{ github.event.issue.number }}
           TEMPLATE_CONTENT: ${{ steps.read.outputs.content }}
-          ORIGINAL_BODY: ${{ steps.getpr.outputs.body }}
         run: |
           # 新しい本文を組み立て (テンプレートは既に \n エスケープ済み)
           template_real=$(printf "%b" "$TEMPLATE_CONTENT")
-          new_body=$(printf "%s\n---\n(Original content below)\n%s" "$template_real" "$ORIGINAL_BODY")
 
           # jq を使って JSON 文字列として安全にエンコード
           payload=$(jq -Rn --arg b "$new_body" '{body: $b}')
